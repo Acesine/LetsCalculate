@@ -9,15 +9,15 @@ public class GameRequest implements Serializable{
     private static final long serialVersionUID = 7483572295622456147L;
 
     private final String userName;
-    private final String formula;
+    private final String msg;
 
-    public GameRequest(final String userName, final String formula) {
+    public GameRequest(final String userName, final String msg) {
         this.userName = userName;
-        this.formula = formula;
+        this.msg = msg;
     }
 
-    public String getFormula() {
-        return formula;
+    public String getMessage() {
+        return msg;
     }
 
     public String getUserName() {

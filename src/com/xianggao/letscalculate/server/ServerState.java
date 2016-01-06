@@ -6,6 +6,5 @@ package com.xianggao.letscalculate.server;
 public enum ServerState {
     WAITING_FOR_CONNECTION,
     WAITING_FOR_CONFIRMATION,
-    PROBLEM_POSTED,
-    WAITING_FOR_ANSWER
+    PROBLEM_POSTED
 }

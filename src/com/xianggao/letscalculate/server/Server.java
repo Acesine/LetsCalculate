@@ -1,16 +1,15 @@
 package com.xianggao.letscalculate.server;
 
 import com.xianggao.letscalculate.commons.Constants;
-import com.xianggao.letscalculate.commons.GameRequest;
+import com.xianggao.letscalculate.commons.GameResponse;
+import com.xianggao.letscalculate.commons.SocketUtils;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.Socket;
-import java.util.HashMap;
+import java.net.SocketException;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -19,14 +18,15 @@ import java.util.Set;
 public class Server implements Runnable{
     private ServerOchestrator ochestrator;
     private final ProblemGenerator problemGenerator;
-    private Map<String, Socket> clients;
+    private Set<ClientInfo> clients;
     private ServerState state;
     private Problem problem;
-    private
+    private Set<String> confirmedUser;
 
     public Server() {
         this.state = ServerState.WAITING_FOR_CONNECTION;
-        this.clients = new HashMap<>();
+        this.clients = new HashSet<>();
+        this.confirmedUser = new HashSet<>();
         this.problemGenerator = new ProblemGenerator();
         this.ochestrator = new ServerOchestrator(this);
     }
@@ -40,7 +40,11 @@ public class Server implements Runnable{
     }
 
     public int getClientsNum() {
-        return clients.entrySet().size();
+        return clients.size();
+    }
+
+    public void addClient(ClientInfo client) {
+        this.clients.add(client);
     }
 
     public void setServerState(ServerState state) {
@@ -51,50 +55,40 @@ public class Server implements Runnable{
         return this.problem;
     }
 
+    public void addConfirmedUser(String userName) {
+        confirmedUser.add(userName);
+    }
+
+    public boolean isConfirmed() {
+        return confirmedUser.size() == clients.size();
+    }
+
     @Override
     public void run() {
-        // A simple server
         try (
-                ServerSocket serverSocket = new ServerSocket(Constants.PORT_NUM);
+                DatagramSocket socket = new DatagramSocket(Constants.SERVER_PORT_NUM);
         ) {
-            // Main loop
             while(true) {
-                Socket clientSocket = serverSocket.accept();
-                if (clients.values().contains(clientSocket) || clients.keySet().size() < Constants.PLAYER_NUM) {
-                    GameRequest request = parseRequest(clientSocket);
-                    clients.put(request.getUserName(), clientSocket);
-                } else {
-                    sendResponse(clientSocket, Constants.SPILL_OVER_MESSAGE);
-                }
+                byte[] buf = new byte[256];
+                DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                socket.receive(packet);
+                ochestrator.handle(socket, packet);
             }
+        } catch (SocketException e) {
+            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private GameRequest parseRequest(Socket clientSocket) throws IOException {
-        ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
-        try {
-            return (GameRequest)in.readObject();
-        } catch (ClassNotFoundException e) {
-            throw new HandlationException(ErrorCode.INVALID_FORMAT);
-        } catch (IOException e) {
-            throw new HandlationException(ErrorCode.INVALID_FORMAT);
+    public void broadcast(DatagramSocket socket, String msg) throws IOException {
+        for (ClientInfo client : clients) {
+            SocketUtils.sendMessage(socket, msg, client.getAddress(), client.getPort());
         }
     }
 
-    private void sendResponse(Socket clientSocket, String msg) throws IOException {
-        PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
-        out.write(msg);
-    }
-
-    public void broadcast(String msg) throws IOException {
-        for (Socket socket : clients) {
-            sendResponse(socket, msg);
-        }
-    }
-
-    public synchronized void generateProblem() {
+    public void postProblem(DatagramSocket socket) throws IOException {
         this.problem = problemGenerator.getProblem();
+        broadcast(socket, problem.getProblem());
     }
 }

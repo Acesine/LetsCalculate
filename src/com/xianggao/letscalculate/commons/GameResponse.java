@@ -8,23 +8,10 @@ import java.io.Serializable;
 public class GameResponse implements Serializable {
     private static final long serialVersionUID = 7483572295622456147L;
 
-    public enum ResponseType {
-        BEACON,
-        PROBLEM,
-        VALIDATE,
-        BROADCAST
-    }
-
-    private ResponseType type;
     private String message;
 
-    public GameResponse(final ResponseType type, final String message) {
-        this.type = type;
+    public GameResponse(final String message) {
         this.message = message;
-    }
-
-    public ResponseType getType() {
-        return type;
     }
 
     public String getMessage() {

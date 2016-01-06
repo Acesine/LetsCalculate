@@ -1,12 +1,13 @@
 package com.xianggao.letscalculate.client;
 
 import com.xianggao.letscalculate.commons.Constants;
+import com.xianggao.letscalculate.commons.SocketUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
@@ -17,23 +18,21 @@ public class Client {
         System.out.println("What's server address?");
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
         String hostName = stdIn.readLine();
-        System.out.println("What's your name?");
-        String clientName = stdIn.readLine();
-        try (
-                Socket clientSocket = new Socket(hostName, Constants.PORT_NUM);
-                PrintWriter out =
-                        new PrintWriter(clientSocket.getOutputStream(), true);
-                BufferedReader in =
-                        new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        ) {
+        DatagramSocket socket = null;
+        try {
+            socket = new DatagramSocket(Constants.CLIENT_PORT_NUM);
+            new Thread(new ServerHandler(socket)).start();
+            SocketUtils.sendMessage(socket, "hello", InetAddress.getByName(hostName), Constants.SERVER_PORT_NUM);
             String userInput;
             while ((userInput = stdIn.readLine()) != null) {
-                out.println(userInput);
-                System.out.println("[SERVER]: " + in.readLine());
+                SocketUtils.sendMessage(socket, userInput, InetAddress.getByName(hostName), Constants.SERVER_PORT_NUM);
             }
         } catch (UnknownHostException e) {
             System.err.println("Cannot find server: " + hostName);
             System.exit(1);
+        } finally {
+            if (socket != null)
+                SocketUtils.sendMessage(socket, "bye", InetAddress.getByName(hostName), Constants.SERVER_PORT_NUM);
         }
     }
 }
